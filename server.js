@@ -1,23 +1,26 @@
 import express from "express";
+import cors from "cors";
 import fs from "fs";
-import path from "path";
 import crypto from "crypto";
-import { fileURLToPath } from "url";
 
 const app = express();
+
+// Allow your client (GitHub Pages / local file / anywhere)
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type"]
+}));
+
 app.use(express.json());
 
-// --- paths ---
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const ROOT = path.join(__dirname, "..");
-const CLIENT_DIR = path.join(ROOT, "client");
-const DB_FILE = path.join(__dirname, "messages.json");
+// IMPORTANT: Vercel allows writing only to /tmp (but it resets sometimes)
+const DB_FILE = "/tmp/messages.json";
 
 function ensureDb() {
   if (!fs.existsSync(DB_FILE)) fs.writeFileSync(DB_FILE, JSON.stringify([]));
 }
+
 function readDb() {
   ensureDb();
   try {
@@ -26,6 +29,7 @@ function readDb() {
     return [];
   }
 }
+
 function writeDb(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
@@ -78,14 +82,5 @@ app.delete("/api/messages/:id", (req, res) => {
   res.json({ ok: true });
 });
 
-// --- Serve Client (NO CORS needed) ---
-app.use(express.static(CLIENT_DIR));
-
-app.get("*", (req, res) => {
-  res.sendFile(path.join(CLIENT_DIR, "index.html"));
-});
-
-const PORT = 5000;
-app.listen(PORT, () => {
-  console.log(`✅ Server running: http://localhost:${PORT}`);
-});
+// ✅ Vercel needs export default (NO app.listen)
+export default app;
